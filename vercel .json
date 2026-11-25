@@ -1,0 +1,11 @@
+{
+  "installCommand": "[ -f src/main.tsx ] && npm install --include=dev || true",
+  "buildCommand": "if [ -f src/main.tsx ]; then [ -x node_modules/.bin/vite ] || npm install --include=dev; ./node_modules/.bin/vite build; else mkdir -p dist && cp \"$(ls -t index*.html|head -n1)\" dist/index.html; fi",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
