@@ -1,6 +1,6 @@
 {
-  "installCommand": "[ -f src/main.tsx ] && npm install --include=dev || true",
-  "buildCommand": "if [ -f src/main.tsx ]; then [ -x node_modules/.bin/vite ] || npm install --include=dev; ./node_modules/.bin/vite build; else mkdir -p dist && cp \"$(ls -S index*.html|head -n1)\" dist/index.html; fi",
+  "installCommand": "[ -f src/main.tsx ] && npm install --include=dev --legacy-peer-deps || true",
+  "buildCommand": "if [ -f src/main.tsx ]; then ([ -x node_modules/.bin/vite ] || npm install --include=dev --legacy-peer-deps) && ./node_modules/.bin/vite build; else mkdir -p dist && cp \"$(ls -S index*.html|head -n1)\" dist/index.html; fi",
   "outputDirectory": "dist",
   "rewrites": [
     {
