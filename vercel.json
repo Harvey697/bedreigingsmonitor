@@ -1,7 +1,6 @@
 {
-  "framework": "vite",
-  "installCommand": "if grep -q 'data:text/javascript;base64' index.html 2>/dev/null; then echo 'Standalone index.html gedetecteerd'; else npm install --include=dev; fi",
-  "buildCommand": "if grep -q 'data:text/javascript;base64' index.html 2>/dev/null; then mkdir -p dist && ([ -d public ] && cp -r public/* dist/ || true) && cp index.html dist/index.html; else if [ ! -x node_modules/.bin/vite ]; then npm install --include=dev; fi && ./node_modules/.bin/vite build; fi",
+  "installCommand": "[ -f src/main.tsx ] && npm install --include=dev || true",
+  "buildCommand": "if [ -f src/main.tsx ]; then [ -x node_modules/.bin/vite ] || npm install --include=dev; ./node_modules/.bin/vite build; else mkdir -p dist && cp \"$(ls -S index*.html|head -n1)\" dist/index.html; fi",
   "outputDirectory": "dist",
   "rewrites": [
     {

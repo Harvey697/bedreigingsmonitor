@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /api/feedback
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-News
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+Sitemap: https://bedreigingsmonitor.nl/sitemap.xml

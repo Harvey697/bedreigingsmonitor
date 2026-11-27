@@ -1,0 +1,25 @@
+# Beveiliging tegen PHP2Shell (CVE-2026-109618 & CVE-2026-109619) voor statische hosting (Mijndomein)
+<FilesMatch "\.(php|php5|php7|php8|phtml|phps|phar|inc)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order Allow,Deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Blokkeer direct alle verzoeken naar .php bestanden en multipart/form-data exploits (PHP2Shell mitigatie)
+  RewriteCond %{REQUEST_URI} \.(php|phtml|phar) [NC,OR]
+  RewriteCond %{CONTENT_TYPE} ^multipart/form-data [NC]
+  RewriteRule .* - [F,L]
+
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>

@@ -1,0 +1,8 @@
+{
+  "name": "Bedreigingsmonitor.nl - Realtime Cyberaanvallen & Ransomware Tracker",
+  "description": "Bedreigingsmonitor.nl volgt realtime cyberaanvallen, ransomware, darkweb lek-sites en spionage uit Rusland en China op Nederlandse en Europese vitale infrastructuur met live alerts en media formats.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
