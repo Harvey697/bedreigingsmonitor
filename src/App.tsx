@@ -101,8 +101,15 @@ function getPositivePreventionTipForThreat(threat: ThreatItem): string {
   if (text.includes('php') || text.includes('brotli') || text.includes('node') || text.includes('cve-')) {
     return '💡 Positieve Preventietip (DIVD & CVD Apeldoorn): Voer de nieuwste software-update door en activeer automatische patch-controles; hiermee is uw omgeving direct beschermd.';
   }
-  if (text.includes('ransomware') || text.includes('cl0p') || text.includes('lockbit') || text.includes('windchill')) {
-    return '💡 Positieve Preventietip (Brabant House of Cyber & DTC): Met een onwijzigbare (immutable) 3-2-1 back-up en netwerksegmentatie blijft uw bedrijfsvoering veilig en herstelbaar.';
+  if (
+    text.includes('ransomware') ||
+    text.includes('direwolf') ||
+    text.includes('wolters kluwer') ||
+    text.includes('cl0p') ||
+    text.includes('lockbit') ||
+    text.includes('windchill')
+  ) {
+    return '💡 Positieve Preventietip (Brabant House of Cyber & DTC): Met een onwijzigbare (immutable) 3-2-1 back-up, netwerksegmentatie en monitoring op bulk-exfiltratie blijft uw bedrijfsvoering veilig en herstelbaar.';
   }
   if (text.includes('shinyhunters') || text.includes('odido') || text.includes('credential') || text.includes('phishing')) {
     return '💡 Positieve Preventietip (CVD Apeldoorn): Gebruik een wachtwoordkluis met unieke wachtwoorden en tweestapsverificatie (2FA) om misbruik van gelekte inloggegevens te voorkomen.';
@@ -1118,7 +1125,7 @@ export default function App() {
                     <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                       Synchroniseert automatisch{' '}
                       <span className="text-emerald-800 font-semibold">
-                        Security.NL · NCSC-NL Advisories &amp; GitHub · DIVD CSIRT · DTC · Z-CERT · CERT-WM · SURFcert · Politie.nl · AIVD · Tweakers · NOS Tech · Ransomware.live (NL) · CISA KEV
+                        Security.NL · NCSC-NL Advisories &amp; GitHub · DIVD CSIRT · DTC · Z-CERT · CERT-WM · SURFcert · Politie.nl · AIVD · Tweakers · NOS Tech · @DarkWebInformer · The Register · Ransomware.live (NL) · CISA KEV
                       </span>
                     </p>
                   </div>
@@ -1396,13 +1403,6 @@ export default function App() {
             {/* ================= PAGINA 2: DARK WEB INTELLIGENCE, .ONION LEKSITES & KENNISCENTRA ================= */}
             {(homeSubPage === 'PAGE_2_DARKWEB_EN_LEKSITES' || homeSubPage === 'ALL_COMBINED') && (
               <>
-                {homeSubPage === 'PAGE_2_DARKWEB_EN_LEKSITES' && (
-                  <DutchCyberResilienceHub
-                    compactOnHome={false}
-                    onOpenFullResilienceTab={() => setActiveTab('WEERBAARHEID_EN_CENTRA')}
-                  />
-                )}
-
             {/* 3. Dark Web Intelligence & .Onion Leksites Berichten */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 overflow-hidden">
               <div className="space-y-3 border-b border-slate-200 pb-4">

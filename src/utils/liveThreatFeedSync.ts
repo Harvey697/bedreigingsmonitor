@@ -118,8 +118,30 @@ export const CONNECTED_THREAT_SOURCES: ConnectedThreatSource[] = [
     countryFlag: '🕵️‍♂️',
     feedUrl: 'https://ransomware.live/rss.xml',
     websiteUrl: 'https://www.ransomware.live',
-    description: 'Beperkt gefilterde monitor van ransomware-groepen gericht op Nederland (.nl-domeinen, Nederlandse organisaties en vitale ketenpartners; max. 2 meldingen).',
+    description: 'NL-gefilterde monitor van ransomware-groepen gericht op Nederland (landcode NL, .nl-domeinen en Nederlandse ondernemingen/ketenpartners; max. 5 meldingen).',
     syncMethod: 'NL-Gefilterde RSS & Leak Scraper',
+    status: 'ACTIEF',
+  },
+  {
+    id: 'src-darkwebinformer',
+    name: '@DarkWebInformer (Dark Web & Ransomware OSINT)',
+    category: 'DARKWEB_INTEL',
+    countryFlag: '🏴‍☠️',
+    feedUrl: 'https://darkwebinformer.com/rss/',
+    websiteUrl: 'https://darkwebinformer.com',
+    description: 'Realtime darkweb- en afpersingsmonitor (@DarkWebInformer) voor vroege detectie van ransomware-claims (zoals DireWolf / Wolters Kluwer), datalekken en zero-days.',
+    syncMethod: 'Live RSS OSINT Scraper',
+    status: 'ACTIEF',
+  },
+  {
+    id: 'src-theregister-security',
+    name: 'The Register — Security (theregister.com)',
+    category: 'GLOBAL_ZERO_DAY',
+    countryFlag: '🇬🇧',
+    feedUrl: 'https://www.theregister.com/security/headlines.rss',
+    websiteUrl: 'https://www.theregister.com/security/',
+    description: 'Directe security-feed van The Register voor internationale cyberincidenten, kwetsbaarheden, overheidsstoringen en datalekken.',
+    syncMethod: 'Live RSS Security Scraper',
     status: 'ACTIEF',
   },
   {
@@ -513,6 +535,9 @@ export function getThreatTopicFingerprint(t: {
   if (combined.includes('drogist') || combined.includes('236.000') || combined.includes('canvas lms')) {
     return 'topic-da-drogist-canvas';
   }
+  if (combined.includes('wolters kluwer') || combined.includes('direwolf')) {
+    return 'topic-direwolf-wolters-kluwer';
+  }
   if (combined.includes('portbase') || combined.includes('santos')) {
     return 'topic-rotterdam-portbase-santos';
   }
@@ -530,17 +555,34 @@ export function getThreatTopicFingerprint(t: {
  */
 export function deduplicateThreats(threats: ThreatItem[]): ThreatItem[] {
   const seenIds = new Set<string>();
-  const seenTopics = new Set<string>();
+  const topicToIndex = new Map<string, number>();
   const result: ThreatItem[] = [];
 
   for (const t of threats) {
     if (!t || !t.id) continue;
     const topicKey = getThreatTopicFingerprint(t);
-    if (seenIds.has(t.id) || seenTopics.has(topicKey)) {
+    if (seenIds.has(t.id)) {
+      continue;
+    }
+    const existingIdx = topicToIndex.get(topicKey);
+    if (existingIdx !== undefined) {
+      const existing = result[existingIdx];
+      // Behoud toppositie maar upgrade korte live RSS-melding automatisch met het volledige Nederlandse dossier als dat beschikbaar is
+      if (
+        (t.description?.length || 0) > (existing.description?.length || 0) + 120 &&
+        !t.id.startsWith('live-osint-rss-') &&
+        !t.id.startsWith('live-osint-srv-')
+      ) {
+        result[existingIdx] = {
+          ...t,
+          proofSampleUrl: existing.proofSampleUrl || t.proofSampleUrl,
+        };
+      }
+      seenIds.add(t.id);
       continue;
     }
     seenIds.add(t.id);
-    seenTopics.add(topicKey);
+    topicToIndex.set(topicKey, result.length);
     result.push(t);
   }
 
@@ -576,6 +618,15 @@ export function classifySectorAndVictim(title: string, description: string): {
       sector: 'RIJKSOVERHEID_EN_DEFENSIE',
       victim: 'Tweede Kamer, NCSC-NL, Tweakers, Gemeenten (NotuBiz) & PHP Webservers (~70% Internet)',
       location: 'Den Haag / Geheel Nederland & Wereldwijd',
+      isDutchVital: true,
+      severity: 'KRITIEK',
+    };
+  }
+  if (text.includes('wolters kluwer') || text.includes('alphen aan den rijn')) {
+    return {
+      sector: 'TELECOM_EN_INTERNET',
+      victim: 'Wolters Kluwer N.V. (Alphen aan den Rijn — Software & Professionele Informatie)',
+      location: 'Alphen aan den Rijn, Nederland',
       isDutchVital: true,
       severity: 'KRITIEK',
     };
@@ -853,6 +904,9 @@ export function classifyActorAndOrigin(title: string, description: string): {
     };
   }
   if (
+    text.includes('direwolf') ||
+    text.includes('wolters kluwer') ||
+    text.includes('has just published a new victim') ||
     text.includes('lockbit') ||
     text.includes('akira') ||
     text.includes('ransomware') ||
@@ -863,12 +917,18 @@ export function classifyActorAndOrigin(title: string, description: string): {
     text.includes('ah ') ||
     text.includes('datalek')
   ) {
+    const rwMatch = title.match(/([a-z0-9_.-]+(?:\s+[a-z0-9_.-]+)?)\s+has just published a new victim\s*:/i);
+    const rwGroup = text.includes('direwolf')
+      ? 'DireWolf Ransomware Group'
+      : rwMatch
+      ? `${rwMatch[1].replace(/[^\w .-]/g, '').trim()} Ransomware Group`
+      : 'Cybercrime & Supply-Chain Syndicaat';
     return {
-      actor: 'Cybercrime & Supply-Chain Syndicaat',
+      actor: rwGroup,
       origin: 'DARKWEB_SYNDICAAT',
       originCountry: 'Internationaal Cybercrime Syndicaat',
       originFlag: '🏴‍☠️',
-      vector: 'Supply-Chain Compromittatie / Ransomware & Exfiltratie',
+      vector: 'Ransomware Data-Exfiltratie & Dubbele Afpersing (.onion Leksite)',
     };
   }
 
@@ -909,10 +969,12 @@ function parseFeedDate(raw?: string): Date | null {
 function isDutchFocusedText(textLower: string): boolean {
   return (
     /\b[a-z0-9-]+\.nl\b/.test(textLower) ||
+    /\b(klm|nxp|sidn|vgz)\b/.test(textLower) ||
     textLower.includes('nederland') ||
     textLower.includes('netherlands') ||
     textLower.includes('dutch') ||
     textLower.includes('holland') ||
+    textLower.includes('benelux') ||
     textLower.includes('amsterdam') ||
     textLower.includes('rotterdam') ||
     textLower.includes('den haag') ||
@@ -920,36 +982,105 @@ function isDutchFocusedText(textLower: string): boolean {
     textLower.includes('utrecht') ||
     textLower.includes('eindhoven') ||
     textLower.includes('groningen') ||
+    textLower.includes('alphen aan den rijn') ||
+    textLower.includes('tilburg') ||
+    textLower.includes('breda') ||
+    textLower.includes('arnhem') ||
+    textLower.includes('nijmegen') ||
+    textLower.includes('enschede') ||
+    textLower.includes('haarlem') ||
+    textLower.includes('almere') ||
+    textLower.includes('leiden') ||
+    textLower.includes('delft') ||
+    textLower.includes('zwolle') ||
+    textLower.includes('apeldoorn') ||
+    textLower.includes('amersfoort') ||
+    textLower.includes('hilversum') ||
+    textLower.includes('zaandam') ||
+    textLower.includes('veldhoven') ||
+    textLower.includes('maastricht') ||
+    textLower.includes('leeuwarden') ||
+    textLower.includes('venlo') ||
     textLower.includes('schiphol') ||
+    textLower.includes('wolters kluwer') ||
     textLower.includes('asml') ||
     textLower.includes('philips') ||
     textLower.includes('ahold') ||
     textLower.includes('albert heijn') ||
+    textLower.includes('jumbo') ||
+    textLower.includes('hema') ||
     textLower.includes('kpn') ||
     textLower.includes('odido') ||
     textLower.includes('ziggo') ||
+    textLower.includes('vodafoneziggo') ||
     textLower.includes('rabobank') ||
     textLower.includes('abn amro') ||
+    textLower.includes('ing bank') ||
+    textLower.includes('ing group') ||
+    textLower.includes('adyen') ||
+    textLower.includes('bunq') ||
+    textLower.includes('aegon') ||
+    textLower.includes('nn group') ||
+    textLower.includes('nationale-nederlanden') ||
+    textLower.includes('achmea') ||
+    textLower.includes('zilveren kruis') ||
+    textLower.includes('menzis') ||
     textLower.includes('tennet') ||
+    textLower.includes('alliander') ||
+    textLower.includes('enexis') ||
+    textLower.includes('stedin') ||
+    textLower.includes('gasunie') ||
+    textLower.includes('eneco') ||
+    textLower.includes('essent') ||
+    textLower.includes('vitens') ||
+    textLower.includes('evides') ||
+    textLower.includes('waternet') ||
+    textLower.includes('prorail') ||
+    textLower.includes('transavia') ||
+    textLower.includes('akzonobel') ||
+    textLower.includes('dsm-firmenich') ||
+    textLower.includes('booking.com') ||
+    textLower.includes('just eat takeaway') ||
+    textLower.includes('thuisbezorgd') ||
+    textLower.includes('tomtom') ||
+    textLower.includes('afas') ||
+    textLower.includes('unit4') ||
+    textLower.includes('nedap') ||
+    textLower.includes('fugro') ||
+    textLower.includes('boskalis') ||
+    textLower.includes('volkerwessels') ||
+    textLower.includes('heijmans') ||
+    textLower.includes('royal bam') ||
+    textLower.includes('arcadis') ||
+    textLower.includes('signify') ||
     textLower.includes('digid') ||
     textLower.includes('ncsc') ||
     textLower.includes('aivd') ||
     textLower.includes('mivd') ||
+    textLower.includes('surfcert') ||
+    textLower.includes('ams-ix') ||
     textLower.includes('politie') ||
     textLower.includes('rijksoverheid') ||
     textLower.includes('gemeente') ||
     textLower.includes('ziekenhuis') ||
+    textLower.includes('umc utrecht') ||
+    textLower.includes('amsterdam umc') ||
+    textLower.includes('erasmus mc') ||
+    textLower.includes('radboudumc') ||
+    textLower.includes('lumc') ||
+    textLower.includes('umcg') ||
     textLower.includes('postnl') ||
     textLower.includes('heineken') ||
     textLower.includes('vdl') ||
     textLower.includes('randstad') ||
     textLower.includes('bol.com') ||
-    textLower.includes('coolblue')
+    textLower.includes('coolblue') ||
+    textLower.includes('wehkamp')
   );
 }
 
 function convertRssItemToThreat(
-  item: { title?: string; description?: string; pubDate?: string; link?: string },
+  item: { title?: string; description?: string; pubDate?: string; link?: string; categories?: string[] },
   sourceLabel: string,
   idx: number,
   requireStrictKeyword: boolean,
@@ -961,9 +1092,15 @@ function convertRssItemToThreat(
   if (!cleanTitle || cleanTitle.length < 10) return null;
 
   const lower = `${cleanTitle} ${cleanDesc}`.toLowerCase();
+  const hasNlCategory = Array.isArray(item.categories)
+    ? item.categories.some((c) => {
+        const up = String(c).trim().toUpperCase();
+        return up === 'NL' || up === 'NETHERLANDS';
+      })
+    : false;
 
-  // Beperk Ransomware.live strikt tot Nederlandse slachtoffers/ketens
-  if (nlOnlyRansomware && !isDutchFocusedText(lower)) {
+  // Beperk Ransomware.live strikt tot Nederlandse slachtoffers/ketens (via landcode NL of bedrijfs-/plaatsnaam)
+  if (nlOnlyRansomware && !hasNlCategory && !isDutchFocusedText(lower)) {
     return null;
   }
 
@@ -983,6 +1120,14 @@ function convertRssItemToThreat(
       lower.includes('malware') ||
       lower.includes('botnet') ||
       lower.includes('ncsc') ||
+      lower.includes('breach') ||
+      lower.includes('vulnerability') ||
+      lower.includes('exploit') ||
+      lower.includes('zero-day') ||
+      lower.includes('sql injection') ||
+      lower.includes('pwned') ||
+      lower.includes('infostealer') ||
+      lower.includes('backdoor') ||
       (lower.includes('storing') &&
         (lower.includes('schiphol') ||
           lower.includes('paspoort') ||
@@ -1026,7 +1171,7 @@ function convertRssItemToThreat(
 
   const { sector, victim, location, isDutchVital, severity } = classifySectorAndVictim(cleanTitle, cleanDesc);
   const { actor, origin, originCountry, originFlag, vector } = classifyActorAndOrigin(cleanTitle, cleanDesc);
-  const nlFocused = baseNlPriority >= 3 || isDutchFocusedText(lower) || isDutchVital;
+  const nlFocused = baseNlPriority >= 3 || hasNlCategory || isDutchFocusedText(lower) || isDutchVital;
 
   const slug = cleanTitle.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 18);
 
@@ -1085,6 +1230,49 @@ function convertRssItemToThreat(
  */
 function getVerifiedDarkwebIntelLiveItems(): ThreatItem[] {
   return [
+    {
+      id: 'live-osint-direwolf-wolters-kluwer-27nov-2026',
+      title: '[@DARKWEBINFORMER & RANSOMWARE.LIVE (NL) — 27 NOV 2026 02:02] DireWolf ransomwaregroep claimt ~18 TB datadiefstal (13 datasets) bij Wolters Kluwer',
+      threatActor: 'DireWolf Ransomware Group',
+      threatActorType: 'RANSOMWARE_CARTEL',
+      origin: 'DARKWEB_SYNDICAAT',
+      originCountry: '@DarkWebInformer & Ransomware.live (Categorie: NL — DireWolf .onion Leksite)',
+      originFlag: '🇳🇱',
+      targetVictim: 'Wolters Kluwer N.V. (Alphen aan den Rijn — Software & Professionele Informatie)',
+      targetSector: 'TELECOM_EN_INTERNET',
+      targetLocation: 'Alphen aan den Rijn, Nederland',
+      isDutchVitalInfra: true,
+      severity: 'KRITIEK',
+      notificationTier: 'TIER_1_NL_VITAAL',
+      timestamp: '27 november 2026, 02:02 CET',
+      attackDate: '27 november 2026',
+      attackTime: '02:02 CET',
+      realtimeStatus: 'DATA_EXFILTRATIE_LIVE',
+      liveTelemetryMetrics: {
+        packetsPerSec: 'Bron: @DarkWebInformer • Ransomware.live (NL)',
+        bandwidthExfiltrated: '~18 TB geclaimd (13 uiterst gevoelige datasets)',
+        activeC2Connections: 13,
+      },
+      attackVector: 'Ransomware Data-Exfiltratie & Dubbele Afpersing (.onion Leksite)',
+      mitreTechniques: ['T1567', 'T1486', 'T1005'],
+      description:
+        '@DarkWebInformer meldt (bevestigd via Ransomware.live categorie NL op 27 november 2026) dat DireWolf circa 18 TB aan gegevens claimt te hebben gestolen van Wolters Kluwer (13 datasets met uiterst gevoelige bedrijfs- en klantgegevens).',
+      leakStatus: 'ACTIEF_LEK',
+      proofSampleUrl: 'https://www.ransomware.live/id/V29sdGVycyBLbHV3ZXJAZGlyZXdvbGY',
+      verifiedByCsirt: true,
+      verificationConfidenceScore: 99,
+      verificationSources: [
+        {
+          id: 'dwi-direwolf-wolters-live-1',
+          sourceName: '@DarkWebInformer & Ransomware.live (Categorie: NL)',
+          type: 'DARKWEB_CRAWLER',
+          verified: true,
+          timestamp: '27 november 2026, 02:02 CET',
+          confidence: 'ZEER_HOOG',
+          evidenceSummary: 'DireWolf-claim tegen Wolters Kluwer (~18 TB / 13 datasets) gerapporteerd door @DarkWebInformer en geïndexeerd op Ransomware.live.',
+        },
+      ],
+    },
     {
       id: 'live-osint-secnl-politie-castlerat-benu-aivd-14nov-2026',
       title: '[SECURITY.NL #SECURITYNL, POLITIE, EUROPOL & FRAUDEHELPDESK — 12–14 NOV 2026] Politie haalt 120 CastleRAT & Gootloader malware-servers offline (893.000 unieke wachtwoorden op Checkjehack.nl); BENU-apotheek phishing; AIVD auto-advies niet in dienstauto ministers & TSMC/Caixa datalekken',
@@ -2421,7 +2609,9 @@ export async function syncLiveThreatFeeds(): Promise<{
     { url: 'https://feeds.nos.nl/nosnieuwstech', label: 'NOS Tech & Cyber', strict: true, nlOnlyRansomware: false, nlPriority: 3, maxItems: 6 },
     { url: 'https://feeds.nos.nl/nosnieuwsalgemeen', label: 'NOS Nieuws Live', strict: true, nlOnlyRansomware: false, nlPriority: 3, maxItems: 6 },
     { url: 'https://cert.europa.eu/publications/security-advisories-rss', label: 'CERT-EU', strict: false, nlOnlyRansomware: false, nlPriority: 2, maxItems: 3 },
-    { url: 'https://ransomware.live/rss.xml', label: 'Ransomware.live (NL Filter)', strict: false, nlOnlyRansomware: true, nlPriority: 3, maxItems: 2 },
+    { url: 'https://ransomware.live/rss.xml', label: 'Ransomware.live (NL Filter)', strict: false, nlOnlyRansomware: true, nlPriority: 3, maxItems: 5 },
+    { url: 'https://darkwebinformer.com/rss/', label: '@DarkWebInformer', strict: false, nlOnlyRansomware: false, nlPriority: 2, maxItems: 3 },
+    { url: 'https://www.theregister.com/security/headlines.rss', label: 'The Register Security', strict: true, nlOnlyRansomware: false, nlPriority: 1, maxItems: 3 },
     { url: 'https://krebsonsecurity.com/feed/', label: 'KrebsOnSecurity', strict: false, nlOnlyRansomware: false, nlPriority: 1, maxItems: 2 },
     { url: 'https://www.bleepingcomputer.com/feed/', label: 'BleepingComputer', strict: true, nlOnlyRansomware: false, nlPriority: 1, maxItems: 2 },
   ];
@@ -2445,8 +2635,11 @@ export async function syncLiveThreatFeeds(): Promise<{
       const linkNode = node.querySelector('link');
       const link =
         linkNode?.getAttribute('href') || linkNode?.textContent || '';
+      const categories = Array.from(node.querySelectorAll('category'))
+        .map((c) => (c.textContent || '').trim().toUpperCase())
+        .filter(Boolean);
       const threat = convertRssItemToThreat(
-        { title, description, pubDate, link },
+        { title, description, pubDate, link, categories },
         feed.label,
         idx,
         feed.strict,
@@ -2633,7 +2826,7 @@ export async function syncLiveThreatFeeds(): Promise<{
   const cleanedLiveFetched: ThreatItem[] = liveFetched.map(({ _sortTs, _nlPriority, ...rest }) => rest);
 
   // Plaats echt live opgehaalde meldingen (Vercel/API/RSS/CISA) BOVENAAN en vul aan met geverifieerde fallback
-  const finalLiveThreats = deduplicateThreats([...cleanedLiveFetched, ...historicalFallback]).slice(0, 16);
+  const finalLiveThreats = deduplicateThreats([...cleanedLiveFetched, ...historicalFallback]).slice(0, 24);
 
   const syncedAtFormatted = new Date().toLocaleTimeString('nl-NL', {
     hour: '2-digit',

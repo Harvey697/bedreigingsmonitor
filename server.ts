@@ -481,6 +481,14 @@ app.post('/api/github/push', async (req, res) => {
             encoding: 'base64',
           });
           if (!blobRes.ok || !blobRes.data?.sha) {
+            if (
+              blobRes.status === 403 ||
+              String(blobRes.data?.message || '').toLowerCase().includes('resource not accessible')
+            ) {
+              throw new Error(
+                'Je GitHub-token mist schrijfrechten (403). Klik op "Snelle Token (unieke naam)" voor een Classic token met repo-rechten, of zet bij een Fine-grained token "Repository access" op bedreigingsmonitor en "Contents" op "Read and write".'
+              );
+            }
             throw new Error(
               `Bestand ${entry.name} kon niet naar GitHub worden geschreven (${blobRes.status}): ${blobRes.data?.message || 'mislukt'}`
             );
@@ -1008,21 +1016,28 @@ function decodeXmlEntities(str: string): string {
     .trim();
 }
 
-function parseServerRssItems(xml: string): Array<{ title: string; description: string; pubDate: string; link: string }> {
-  const items: Array<{ title: string; description: string; pubDate: string; link: string }> = [];
+function parseServerRssItems(
+  xml: string,
+  maxScan: number = 250
+): Array<{ title: string; description: string; pubDate: string; link: string; categories: string[] }> {
+  const items: Array<{ title: string; description: string; pubDate: string; link: string; categories: string[] }> = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
   let match: RegExpExecArray | null;
-  while ((match = itemRegex.exec(xml)) !== null && items.length < 12) {
+  while ((match = itemRegex.exec(xml)) !== null && items.length < maxScan) {
     const block = match[1];
     const titleMatch = block.match(/<title>([\s\S]*?)<\/title>/i);
     const descMatch = block.match(/<description>([\s\S]*?)<\/description>/i);
     const pubMatch = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
     const linkMatch = block.match(/<link>([\s\S]*?)<\/link>/i);
+    const categories = Array.from(block.matchAll(/<category[^>]*>([\s\S]*?)<\/category>/gi))
+      .map((m) => decodeXmlEntities(m[1]).toUpperCase())
+      .filter(Boolean);
     items.push({
       title: titleMatch ? decodeXmlEntities(titleMatch[1]) : '',
       description: descMatch ? decodeXmlEntities(descMatch[1]) : '',
       pubDate: pubMatch ? decodeXmlEntities(pubMatch[1]) : '',
       link: linkMatch ? decodeXmlEntities(linkMatch[1]) : '',
+      categories,
     });
   }
   return items;
@@ -1152,7 +1167,23 @@ app.get('/api/threats/live-sync', async (_req, res) => {
         strictFilter: false,
         nlOnlyRansomware: true,
         nlPriority: 3,
-        maxItems: 2,
+        maxItems: 5,
+      },
+      {
+        url: 'https://darkwebinformer.com/rss/',
+        sourceLabel: '@DarkWebInformer',
+        strictFilter: false,
+        nlOnlyRansomware: false,
+        nlPriority: 2,
+        maxItems: 3,
+      },
+      {
+        url: 'https://www.theregister.com/security/headlines.rss',
+        sourceLabel: 'The Register Security',
+        strictFilter: true,
+        nlOnlyRansomware: false,
+        nlPriority: 1,
+        maxItems: 3,
       },
       {
         url: 'https://krebsonsecurity.com/feed/',
@@ -1174,10 +1205,12 @@ app.get('/api/threats/live-sync', async (_req, res) => {
 
     const isDutchRelevantText = (textLower: string): boolean =>
       /\b[a-z0-9-]+\.nl\b/.test(textLower) ||
+      /\b(klm|nxp|sidn|vgz)\b/.test(textLower) ||
       textLower.includes('nederland') ||
       textLower.includes('netherlands') ||
       textLower.includes('dutch') ||
       textLower.includes('holland') ||
+      textLower.includes('benelux') ||
       textLower.includes('amsterdam') ||
       textLower.includes('rotterdam') ||
       textLower.includes('den haag') ||
@@ -1185,31 +1218,100 @@ app.get('/api/threats/live-sync', async (_req, res) => {
       textLower.includes('utrecht') ||
       textLower.includes('eindhoven') ||
       textLower.includes('groningen') ||
+      textLower.includes('alphen aan den rijn') ||
+      textLower.includes('tilburg') ||
+      textLower.includes('breda') ||
+      textLower.includes('arnhem') ||
+      textLower.includes('nijmegen') ||
+      textLower.includes('enschede') ||
+      textLower.includes('haarlem') ||
+      textLower.includes('almere') ||
+      textLower.includes('leiden') ||
+      textLower.includes('delft') ||
+      textLower.includes('zwolle') ||
+      textLower.includes('apeldoorn') ||
+      textLower.includes('amersfoort') ||
+      textLower.includes('hilversum') ||
+      textLower.includes('zaandam') ||
+      textLower.includes('veldhoven') ||
+      textLower.includes('maastricht') ||
+      textLower.includes('leeuwarden') ||
+      textLower.includes('venlo') ||
       textLower.includes('schiphol') ||
+      textLower.includes('wolters kluwer') ||
       textLower.includes('asml') ||
       textLower.includes('philips') ||
       textLower.includes('ahold') ||
       textLower.includes('albert heijn') ||
+      textLower.includes('jumbo') ||
+      textLower.includes('hema') ||
       textLower.includes('kpn') ||
       textLower.includes('odido') ||
       textLower.includes('ziggo') ||
+      textLower.includes('vodafoneziggo') ||
       textLower.includes('rabobank') ||
       textLower.includes('abn amro') ||
+      textLower.includes('ing bank') ||
+      textLower.includes('ing group') ||
+      textLower.includes('adyen') ||
+      textLower.includes('bunq') ||
+      textLower.includes('aegon') ||
+      textLower.includes('nn group') ||
+      textLower.includes('nationale-nederlanden') ||
+      textLower.includes('achmea') ||
+      textLower.includes('zilveren kruis') ||
+      textLower.includes('menzis') ||
       textLower.includes('tennet') ||
+      textLower.includes('alliander') ||
+      textLower.includes('enexis') ||
+      textLower.includes('stedin') ||
+      textLower.includes('gasunie') ||
+      textLower.includes('eneco') ||
+      textLower.includes('essent') ||
+      textLower.includes('vitens') ||
+      textLower.includes('evides') ||
+      textLower.includes('waternet') ||
+      textLower.includes('prorail') ||
+      textLower.includes('transavia') ||
+      textLower.includes('akzonobel') ||
+      textLower.includes('dsm-firmenich') ||
+      textLower.includes('booking.com') ||
+      textLower.includes('just eat takeaway') ||
+      textLower.includes('thuisbezorgd') ||
+      textLower.includes('tomtom') ||
+      textLower.includes('afas') ||
+      textLower.includes('unit4') ||
+      textLower.includes('nedap') ||
+      textLower.includes('fugro') ||
+      textLower.includes('boskalis') ||
+      textLower.includes('volkerwessels') ||
+      textLower.includes('heijmans') ||
+      textLower.includes('royal bam') ||
+      textLower.includes('arcadis') ||
+      textLower.includes('signify') ||
       textLower.includes('digid') ||
       textLower.includes('ncsc') ||
       textLower.includes('aivd') ||
       textLower.includes('mivd') ||
+      textLower.includes('surfcert') ||
+      textLower.includes('ams-ix') ||
       textLower.includes('politie') ||
       textLower.includes('rijksoverheid') ||
       textLower.includes('gemeente') ||
       textLower.includes('ziekenhuis') ||
+      textLower.includes('umc utrecht') ||
+      textLower.includes('amsterdam umc') ||
+      textLower.includes('erasmus mc') ||
+      textLower.includes('radboudumc') ||
+      textLower.includes('lumc') ||
+      textLower.includes('umcg') ||
       textLower.includes('postnl') ||
       textLower.includes('heineken') ||
       textLower.includes('vdl') ||
       textLower.includes('randstad') ||
       textLower.includes('bol.com') ||
-      textLower.includes('coolblue');
+      textLower.includes('coolblue') ||
+      textLower.includes('wehkamp');
 
     const liveThreats: any[] = [];
     const sources: string[] = [];
@@ -1226,7 +1328,7 @@ app.get('/api/threats/live-sync', async (_req, res) => {
           clearTimeout(timer);
           if (!response.ok) return;
           const xml = await response.text();
-          const parsed = parseServerRssItems(xml);
+          const parsed = parseServerRssItems(xml, f.nlOnlyRansomware ? 250 : 24);
           if (parsed.length > 0) {
             sources.push(f.sourceLabel);
           }
@@ -1234,7 +1336,8 @@ app.get('/api/threats/live-sync', async (_req, res) => {
           const filteredParsed = parsed.filter((item) => {
             if (!item.title || item.title.length < 12) return false;
             const lower = `${item.title} ${item.description}`.toLowerCase();
-            if (f.nlOnlyRansomware && !isDutchRelevantText(lower)) {
+            const hasNlCategory = item.categories.includes('NL') || item.categories.includes('NETHERLANDS');
+            if (f.nlOnlyRansomware && !hasNlCategory && !isDutchRelevantText(lower)) {
               return false;
             }
             if (f.strictFilter) {
@@ -1248,6 +1351,14 @@ app.get('/api/threats/live-sync', async (_req, res) => {
                 lower.includes('supplychain') ||
                 lower.includes('phishing') ||
                 lower.includes('malware') ||
+                lower.includes('breach') ||
+                lower.includes('vulnerability') ||
+                lower.includes('exploit') ||
+                lower.includes('zero-day') ||
+                lower.includes('sql injection') ||
+                lower.includes('pwned') ||
+                lower.includes('infostealer') ||
+                lower.includes('backdoor') ||
                 (lower.includes('storing') &&
                   (lower.includes('schiphol') ||
                     lower.includes('paspoort') ||
@@ -1300,7 +1411,12 @@ app.get('/api/threats/live-sync', async (_req, res) => {
               let location = 'Nederland';
               let severity = 'HOOG';
 
-              if (lower.includes('schiphol') || lower.includes('paspoort') || lower.includes('marechaussee') || lower.includes('poortjes')) {
+              if (lower.includes('wolters kluwer') || lower.includes('alphen aan den rijn')) {
+                sector = 'TELECOM_EN_INTERNET';
+                victim = 'Wolters Kluwer N.V. (Alphen aan den Rijn — Software & Professionele Informatie)';
+                location = 'Alphen aan den Rijn, Nederland';
+                severity = 'KRITIEK';
+              } else if (lower.includes('schiphol') || lower.includes('paspoort') || lower.includes('marechaussee') || lower.includes('poortjes')) {
                 sector = 'TRANSPORT_EN_LUCHTVAART';
                 victim = 'Luchthaven Schiphol / Koninklijke Marechaussee Grenscontrole';
                 location = 'Schiphol, Nederland';
@@ -1320,14 +1436,32 @@ app.get('/api/threats/live-sync', async (_req, res) => {
                 victim = 'Nederlandse Energieleveranciers & Vitale Energiesector';
                 location = 'Nederland';
                 severity = 'HOOG';
+              } else if (lower.includes('zorg') || lower.includes('ziekenhuis') || lower.includes('patiënt') || lower.includes('apotheek')) {
+                sector = 'ZORG_EN_ZIEKENHUIZEN';
+                victim = 'Nederlandse Zorgsector & Medische Instellingen';
+                location = 'Nederland';
+                severity = 'KRITIEK';
               } else if (lower.includes('aivd') || lower.includes('politie') || lower.includes('gemeente')) {
                 sector = 'RIJKSOVERHEID_EN_DEFENSIE';
                 victim = 'Rijksoverheid, Politie & Publieke Sector NL';
                 location = 'Nederland';
                 severity = 'KRITIEK';
-              } else if (lower.includes('kritiek') || lower.includes('supplychain') || lower.includes('rce') || lower.includes('ransomware') || lower.includes('hack')) {
+              } else if (
+                f.nlOnlyRansomware ||
+                lower.includes('kritiek') ||
+                lower.includes('supplychain') ||
+                lower.includes('rce') ||
+                lower.includes('ransomware') ||
+                lower.includes('hack')
+              ) {
                 severity = 'KRITIEK';
               }
+
+              const rwMatch = item.title.match(/([a-z0-9_.-]+(?:\s+[a-z0-9_.-]+)?)\s+has just published a new victim\s*:\s*(.+)$/i);
+              if (rwMatch && !lower.includes('wolters kluwer')) {
+                victim = `${rwMatch[2].trim()} (Nederlands Slachtoffer — Ransomware.live)`;
+              }
+              const parsedRwGroup = rwMatch ? rwMatch[1].replace(/[^\w .-]/g, '').trim() : '';
 
               const slug = item.title.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 18);
               const primarySourceDomains = deepScraped.citedSources.map((cs) => cs.domain).join(', ');
@@ -1339,7 +1473,7 @@ app.get('/api/threats/live-sync', async (_req, res) => {
                 {
                   id: `srv-src-${slug}`,
                   sourceName: f.sourceLabel,
-                  type: 'OVERHEID_CSIRT',
+                  type: f.nlOnlyRansomware ? 'DARKWEB_CRAWLER' : 'OVERHEID_CSIRT',
                   verified: true,
                   timestamp: `${dateStr}, ${timeStr}`,
                   confidence: 'BEVESTIGD',
@@ -1356,18 +1490,28 @@ app.get('/api/threats/live-sync', async (_req, res) => {
                 })),
               ];
 
-              const isNlMatch = f.nlPriority >= 3 || isDutchRelevantText(lower);
+              const hasNlCategory = item.categories.includes('NL') || item.categories.includes('NETHERLANDS');
+              const isNlMatch = f.nlPriority >= 3 || hasNlCategory || isDutchRelevantText(lower);
+              const isRansomwareFeed =
+                f.nlOnlyRansomware ||
+                lower.includes('ransomware') ||
+                lower.includes('direwolf') ||
+                lower.includes('supplychain');
 
               liveThreats.push({
                 id: `live-osint-srv-${slug}-${idx}`,
-                _nlPriority: isNlMatch ? 3 : f.nlPriority,
+                _nlPriority: f.nlOnlyRansomware && isNlMatch ? 4 : isNlMatch ? 3 : f.nlPriority,
                 _sortTs: validDate.getTime(),
                 title: `[LIVE] ${item.title}`,
-                threatActor: lower.includes('ransomware') || lower.includes('supplychain')
+                threatActor: lower.includes('direwolf')
+                  ? 'DireWolf Ransomware Group'
+                  : parsedRwGroup
+                  ? `${parsedRwGroup} Ransomware Group`
+                  : isRansomwareFeed
                   ? 'Cybercrime & Supply-Chain Syndicaat'
                   : 'Actueel Onderzoek (NCSC-NL / CSIRT / Security.NL)',
-                threatActorType: 'STAATSGESPONSORD_APT',
-                origin: 'ONBEKEND',
+                threatActorType: isRansomwareFeed ? 'RANSOMWARE_CARTEL' : 'STAATSGESPONSORD_APT',
+                origin: isRansomwareFeed ? 'DARKWEB_SYNDICAAT' : 'ONBEKEND',
                 originCountry: primarySourceDomains
                   ? `Security.NL + Primaire Bronnen (${primarySourceDomains})`
                   : `Live Bron: ${f.sourceLabel}`,
@@ -1381,14 +1525,16 @@ app.get('/api/threats/live-sync', async (_req, res) => {
                 timestamp: `${dateStr}, ${timeStr}`,
                 attackDate: dateStr,
                 attackTime: timeStr,
-                realtimeStatus: 'AANVAL_NU_ACTIEF',
+                realtimeStatus: isRansomwareFeed ? 'DATA_EXFILTRATIE_LIVE' : 'AANVAL_NU_ACTIEF',
                 liveTelemetryMetrics: {
                   packetsPerSec: sourceMetricLabel,
                   bandwidthExfiltrated: primarySourceDomains ? `Bronnen: ${primarySourceDomains}` : `Geverifieerd op ${dateStr}`,
                   activeC2Connections: 1,
                 },
-                attackVector: 'Actuele Cybermelding / Kwetsbaarheid / Storing (Gescrapet inclusief Primaire Bronnen)',
-                mitreTechniques: ['T1190', 'T1195', 'T1078'],
+                attackVector: isRansomwareFeed
+                  ? 'Ransomware Data-Exfiltratie & Dubbele Afpersing (.onion Leksite)'
+                  : 'Actuele Cybermelding / Kwetsbaarheid / Storing (Gescrapet inclusief Primaire Bronnen)',
+                mitreTechniques: isRansomwareFeed ? ['T1567', 'T1486', 'T1005'] : ['T1190', 'T1195', 'T1078'],
                 description:
                   deepScraped.fullBodyExcerpt && deepScraped.fullBodyExcerpt.length > 40
                     ? `${deepScraped.fullBodyExcerpt} ${
@@ -1425,14 +1571,36 @@ app.get('/api/threats/live-sync', async (_req, res) => {
         .replace(/[^a-z0-9]/g, '')
         .slice(0, 38);
       if (!uniqueMap.has(key)) {
-        const { _sortTs, _nlPriority, ...cleanItem } = item;
-        uniqueMap.set(key, cleanItem);
+        uniqueMap.set(key, item);
       }
     }
 
+    const dedupedAll = Array.from(uniqueMap.values());
+    const selectedItems: any[] = [];
+    const selectedIds = new Set<string>();
+    const addUpTo = (predicate: (x: any) => boolean, limit: number) => {
+      let count = 0;
+      for (const item of dedupedAll) {
+        if (count >= limit) break;
+        if (!selectedIds.has(item.id) && predicate(item)) {
+          selectedIds.add(item.id);
+          selectedItems.push(item);
+          count++;
+        }
+      }
+    };
+
+    addUpTo((x) => (x._nlPriority || 0) >= 4, 5);
+    addUpTo((x) => (x._nlPriority || 0) >= 3, 11);
+    addUpTo((x) => String(x.originCountry || '').includes('@DarkWebInformer'), 2);
+    addUpTo((x) => String(x.originCountry || '').includes('The Register Security'), 2);
+    addUpTo(() => true, Math.max(0, 20 - selectedItems.length));
+
+    const cleanSelected = selectedItems.slice(0, 20).map(({ _sortTs, _nlPriority, ...cleanItem }) => cleanItem);
+
     const payload = {
       success: true,
-      liveThreats: Array.from(uniqueMap.values()).slice(0, 14),
+      liveThreats: cleanSelected,
       sources,
       syncedAt: new Date().toISOString(),
     };

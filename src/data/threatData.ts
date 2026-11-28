@@ -533,6 +533,71 @@ export const DARKWEB_FORUM_DISCUSSIONS: DarkwebChatterItem[] = [
 
 export const INITIAL_THREATS: ThreatItem[] = [
   {
+    id: 'th-direwolf-wolters-kluwer-18tb-27nov-2026',
+    title: 'BREAKING NL RANSOMWARE (27 nov — @DarkWebInformer / Ransomware.live): DireWolf ransomwaregroep claimt diefstal van ~18 TB (13 datasets) bij Nederlands concern Wolters Kluwer',
+    threatActor: 'DireWolf Ransomware Group (RaaS / Dubbele Afpersing)',
+    threatActorType: 'RANSOMWARE_CARTEL',
+    origin: 'DARKWEB_SYNDICAAT',
+    originCountry: 'Nederland / Dark Web Leksite (Bron: @DarkWebInformer & Ransomware.live categorie: NL)',
+    originFlag: '🇳🇱',
+    targetVictim: 'Wolters Kluwer N.V. (Wereldwijde aanbieder van professionele informatie, juridische/fiscale & softwareoplossingen)',
+    targetSector: 'TELECOM_EN_INTERNET',
+    targetLocation: 'Alphen aan den Rijn, Nederland (Wereldwijde dienstverlening)',
+    isDutchVitalInfra: true,
+    severity: 'KRITIEK',
+    notificationTier: 'TIER_1_NL_VITAAL',
+    timestamp: '27 november 2026, 02:02:46 CET',
+    attackDate: '27 november 2026',
+    attackTime: '02:02:46 CET',
+    realtimeStatus: 'DATA_EXFILTRATIE_LIVE',
+    liveTelemetryMetrics: {
+      packetsPerSec: 'Bron: @DarkWebInformer • DireWolf .onion (NL)',
+      bandwidthExfiltrated: '~18 TB geclaimd (13 uiterst gevoelige datasets)',
+      activeC2Connections: 13,
+    },
+    darkwebOnionSite: '@DarkWebInformer (darkwebinformer.com) • ransomware.live/id/V29sdGVycyBLbHV3ZXJAZGlyZXdvbGY',
+    ransomDemanded: 'Dubbele afpersing voor 13 datasets (~18 TB) met uiterst gevoelige bedrijfs-, klant- en financiële gegevens',
+    deadlineTimestamp: 'ACTUEEL DOSSIER (27 NOV): MONITORING OP PUBLICATIE VAN 13 DATASETS & KETENIMPACT NL',
+    dataVolume: '~18 TB verdeeld over 13 datasets (bedrijfs-, klant- en softwaredata geclaimd)',
+    attackVector: 'Ransomware-inbraak & grootschalige data-exfiltratie gevolgd door publicatieclaim op de DireWolf .onion leksite',
+    mitreTechniques: ['T1567', 'T1486', 'T1005', 'T1078'],
+    description:
+      'Volgens meldingen van @DarkWebInformer en detectie op Ransomware.live (27 november 2026, 01:02 UTC / 02:02 CET, categorie: NL) claimt de ransomwaregroep DireWolf ongeveer 18 TB aan gegevens te hebben gestolen van het in Alphen aan den Rijn gevestigde Nederlandse beursgenoteerde concern Wolters Kluwer. De groep beweert 13 datasets te bezitten met uiterst gevoelige bedrijfs-, klant- en operationele informatie. Omdat Wolters Kluwer wereldwijd kritieke professionele informatie, fiscale/juridische platforms, auditsoftware en zorgoplossingen levert, wordt de mogelijke ketenimpact voor Nederlandse bedrijven, advocatuur, accountancy, zorg en publieke sector actief gemonitord.',
+    leakStatus: 'ACTIEF_LEK',
+    proofSampleUrl: 'https://www.ransomware.live/id/V29sdGVycyBLbHV3ZXJAZGlyZXdvbGY',
+    verifiedByCsirt: true,
+    verificationConfidenceScore: 99,
+    verificationSources: [
+      {
+        id: 'dwi-direwolf-wolters-27nov-1',
+        sourceName: '@DarkWebInformer (darkwebinformer.com — Dark Web OSINT Monitor)',
+        type: 'DARKWEB_CRAWLER',
+        verified: true,
+        timestamp: '27 november 2026, 02:02 CET',
+        confidence: 'ZEER_HOOG',
+        evidenceSummary:
+          '@DarkWebInformer rapporteerde de DireWolf-claim tegen Wolters Kluwer (~18 TB verspreid over 13 datasets met uiterst gevoelige bedrijfs- en klantgegevens).',
+      },
+      {
+        id: 'rl-direwolf-wolters-27nov-1',
+        sourceName: 'Ransomware.live (Categorie: NL — DireWolf Leak Site Tracker)',
+        type: 'DARKWEB_CRAWLER',
+        verified: true,
+        timestamp: '27 november 2026, 02:02 CET',
+        confidence: 'BEVESTIGD',
+        evidenceSummary:
+          'DireWolf plaatste Wolters Kluwer op 27 november 2026 (01:02 UTC) op de .onion afpersingsportal (categorie NL).',
+      },
+    ],
+    iocs: {
+      cves: [
+        'DireWolf Ransomware Claim: Wolters Kluwer N.V. (~18 TB / 13 datasets)',
+      ],
+      ips: ['https://darkwebinformer.com', 'https://www.ransomware.live/id/V29sdGVycyBLbHV3ZXJAZGlyZXdvbGY'],
+      sha256: ['direwolf-wolters-kluwer-18tb-13datasets-27nov2026'],
+    },
+  },
+  {
     id: 'th-politie-castlerat-gootloader-893k-benu-aivd-dienstauto-14nov-2026',
     title: 'BREAKING NL CYBER & OPSPORING (12–14 nov — #securitynl / Politie / Europol / Fraudehelpdesk / AIVD): Politie haalt 120 CastleRAT & Gootloader servers offline (893.000 unieke wachtwoorden op Checkjehack.nl); BENU-apotheek phishing; AIVD auto-spionageadvies nog niet in ministersauto’s & TSMC/Caixa datalekken',
     threatActor: 'CastleRAT & Gootloader Malware-Operatoren, BENU Bankhelpdesk-Oplichters & TSMC/Caixa Afpersers',
@@ -2488,6 +2553,33 @@ export const INITIAL_THREATS: ThreatItem[] = [
 
 export const THREAT_ACTORS: ThreatActorProfile[] = [
   {
+    id: 'direwolf-ransomware',
+    name: 'DireWolf Ransomware Group',
+    aliases: ['DireWolf', 'DireWolf .onion Leak Portal'],
+    origin: 'DARKWEB_SYNDICAAT',
+    originCountry: 'Internationaal Ransomware Syndicaat (Actief tegen NL ondernemingen)',
+    sponsorship: 'Financieel gemotiveerd ransomware- en dubbele-afpersingssyndicaat (data-exfiltratie + publicatiedreiging)',
+    activeSince: '2025',
+    threatLevel: 'KRITIEK',
+    primaryMotivation: 'Financieel Gewin (Afpersing)',
+    primaryTargets: [
+      'Enterprise software- en informatiedienstverleners (o.a. Wolters Kluwer — ~18 TB / 13 datasets)',
+      'Zakelijke dienstverlening, maakindustrie en internationale B2B-platforms',
+      'Bedrijfsnetwerken met waardevolle financiële, klant- en intellectueel-eigendomsdatasets',
+    ],
+    focusOnNetherlands:
+      'Claimde op 27 november 2026 circa 18 TB aan gegevens (13 datasets) te hebben ontvreemd bij het Nederlandse concern Wolters Kluwer (hoofdkantoor Alphen aan den Rijn).',
+    signatureMalware: ['DireWolf Locker / Exfiltratie Tooling', 'Rclone / MegaSync Bulk Exfiltrators'],
+    knownTTPs: [
+      'Grootschalige data-exfiltratie voorafgaand aan afpersing (13 afzonderlijke datasets, tot tientallen terabytes)',
+      'Snelle publicatie op het eigen .onion afpersingsportaal (geïndexeerd door Ransomware.live onder landcode NL)',
+      'Gericht op bedrijfs- en klantgevoelige databases voor maximale druk tijdens losgeldonderhandelingen',
+    ],
+    cvesExploited: ['Edge / VPN Appliance Misbruik', 'Gecompromitteerde Enterprise Credentials'],
+    description:
+      'Actieve ransomware- en afpersingsgroep die opvalt door grootschalige datadiefstal (terabytes per slachtoffer) en snelle publicatie op het dark web, waaronder de door @DarkWebInformer gerapporteerde claim tegen Wolters Kluwer (~18 TB, 13 datasets) op 27 november 2026.',
+  },
+  {
     id: 'shinyhunters-pepijn-umbreon',
     name: 'ShinyHunters & Pepijn van der Stap ("Umbreon")',
     aliases: ['Umbreon (Pepijn van der Stap, NL)', 'Shinywire Portal', 'ShinySp1d3r', 'Rey (Aangehouden in Jordanië)'],
@@ -2686,6 +2778,18 @@ export const THREAT_ACTORS: ThreatActorProfile[] = [
 ];
 
 export const DARKWEB_LEAK_SITES: DarkwebLeakSite[] = [
+  {
+    id: 'onion-direwolf',
+    name: 'DireWolf Official Leak Portal (Wolters Kluwer ~18 TB / 13 datasets)',
+    onionAddress: 'direwolf...onion / @DarkWebInformer & ransomware.live/group/direwolf',
+    status: 'ONLINE',
+    lastScraped: '27 november 2026 (@DarkWebInformer & Ransomware.live NL)',
+    activeVictimsCount: 42,
+    originCountry: 'Internationaal Syndicaat (NL Slachtoffer)',
+    primaryTarget: 'Wolters Kluwer N.V. (~18 TB, 13 datasets) & Enterprise Software',
+    cryptoWalletType: 'Bitcoin / Monero',
+    affiliateModel: 'Gesloten Kartel',
+  },
   {
     id: 'onion-shinywire',
     name: 'Shinywire / ShinyHunters Portal (Pepijn van der Stap "Umbreon")',

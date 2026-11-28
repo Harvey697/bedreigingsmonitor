@@ -39,16 +39,44 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({
 }) => {
   const [repoInput, setRepoInput] = useState('Harvey697/bedreigingsmonitor');
   const [branch, setBranch] = useState('main');
-  const [token, setToken] = useState('');
+  const [rememberToken, setRememberToken] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && Boolean(localStorage.getItem('bm_gh_pat_local'));
+    } catch {
+      return false;
+    }
+  });
+  const [token, setToken] = useState<string>(() => {
+    try {
+      return typeof window !== 'undefined' ? localStorage.getItem('bm_gh_pat_local') || '' : '';
+    } catch {
+      return '';
+    }
+  });
   const [showToken, setShowToken] = useState(false);
   const [commitMessage, setCommitMessage] = useState(
-    'Update Bedreigingsmonitor.nl: licht mobiel thema, NL-feeds en Vercel build-fix'
+    'Update Bedreigingsmonitor.nl: DireWolf/Wolters Kluwer, @DarkWebInformer, The Register & compacte links'
   );
   const [isPushing, setIsPushing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [pushResult, setPushResult] = useState<PushResult | null>(null);
 
   if (!isOpen) return null;
+
+  const uniqueTokenDescription = `Bedreigingsmonitor-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '')}`;
+
+  const handleToggleRemember = (checked: boolean) => {
+    setRememberToken(checked);
+    try {
+      if (!checked) {
+        localStorage.removeItem('bm_gh_pat_local');
+      } else if (token.trim()) {
+        localStorage.setItem('bm_gh_pat_local', token.trim());
+      }
+    } catch {
+      // ignore storage errors
+    }
+  };
 
   const handlePush = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +123,16 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({
         return;
       }
 
+      try {
+        if (rememberToken && token.trim()) {
+          localStorage.setItem('bm_gh_pat_local', token.trim());
+        } else {
+          localStorage.removeItem('bm_gh_pat_local');
+        }
+      } catch {
+        // ignore storage errors
+      }
+
       setPushResult({
         commitSha: data.commitSha,
         commitUrl: data.commitUrl,
@@ -102,7 +140,9 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({
         filesCount: data.filesCount,
         branch: data.branch,
       });
-      setToken('');
+      if (!rememberToken) {
+        setToken('');
+      }
     } catch {
       setErrorMsg('Netwerkfout bij verbinden met de server. Probeer het opnieuw.');
     } finally {
@@ -234,12 +274,21 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({
                     </label>
                     <div className="flex items-center gap-3 flex-wrap">
                       <a
-                        href="https://github.com/settings/tokens/new?scopes=repo&description=Bedreigingsmonitor"
+                        href={`https://github.com/settings/tokens/new?scopes=repo&description=${encodeURIComponent(uniqueTokenDescription)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-emerald-700 hover:text-emerald-900 underline font-bold inline-flex items-center gap-1"
                       >
-                        <span>Snelle Token (repo vooraf aangevinkt)</span>
+                        <span>Snelle Token (unieke naam)</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <a
+                        href="https://github.com/settings/tokens"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-slate-600 hover:text-slate-900 underline font-semibold inline-flex items-center gap-1"
+                      >
+                        <span>Bestaande tokens</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
                       <a
@@ -248,7 +297,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({
                         rel="noopener noreferrer"
                         className="text-xs text-sky-700 hover:text-sky-900 underline font-semibold inline-flex items-center gap-1"
                       >
-                        <span>Fine-grained token</span>
+                        <span>Fine-grained</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
@@ -257,7 +306,18 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({
                     <input
                       type={showToken ? 'text' : 'password'}
                       value={token}
-                      onChange={(e) => setToken(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setToken(val);
+                        if (rememberToken) {
+                          try {
+                            if (val.trim()) localStorage.setItem('bm_gh_pat_local', val.trim());
+                            else localStorage.removeItem('bm_gh_pat_local');
+                          } catch {
+                            // ignore
+                          }
+                        }
+                      }}
                       placeholder="github_pat_... of ghp_..."
                       autoComplete="off"
                       className="w-full min-h-[40px] pl-3 pr-10 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 font-mono-code text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
@@ -271,10 +331,19 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({
                       {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  <label className="mt-2 inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberToken}
+                      onChange={(e) => handleToggleRemember(e.target.checked)}
+                      className="w-4 h-4 accent-sky-600 rounded cursor-pointer"
+                    />
+                    <span>Onthoud token lokaal in deze browser (zodat je hem bij een volgende push niet opnieuw hoeft te maken)</span>
+                  </label>
                   <div className="mt-1.5 flex items-start gap-1.5 text-xs text-slate-600">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
                     <span>
-                      <strong>Makkelijkst:</strong> Klik op <em>Snelle Token</em> (daar staat <strong>repo</strong> al aangevinkt) en klik onderaan direct op <strong>Generate token</strong>. Of kies bij <em>Fine-grained</em> onder <strong>Repository permissions → + Add permissions → Contents (Inhoud)</strong> voor <strong>Read and write (Lezen en schrijven)</strong>. Je token wordt nooit opgeslagen.
+                      <strong>Tip:</strong> De melding <em>“Er is reeds een notitie gemaakt”</em> op GitHub komt doordat een token-naam (<strong>Note</strong>) uniek moet zijn. Klik opnieuw op <em>Snelle Token</em> (gebruikt nu automatisch een unieke naam), typ zelf een ander woord in het veld <em>Note/Notitie</em>, of verwijder onder <em>Bestaande tokens</em> een oud token.
                     </span>
                   </div>
                 </div>
